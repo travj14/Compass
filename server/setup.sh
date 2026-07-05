@@ -40,7 +40,10 @@ server {
 EOF
 $SUDO ln -sf "$CONF" /etc/nginx/sites-enabled/compass
 $SUDO nginx -t
-$SUDO systemctl reload nginx
+# Start nginx (and enable on boot); restart applies the config whether or not
+# it was already running.
+$SUDO systemctl enable nginx >/dev/null 2>&1 || true
+$SUDO systemctl restart nginx
 
 echo "==> Requesting HTTPS certificate (certbot)…"
 if [ -n "${EMAIL:-}" ]; then EMAIL_ARG="-m $EMAIL"; else EMAIL_ARG="--register-unsafely-without-email"; fi
