@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Allow plain-HTTP requests to localhost/*.local during development
+	     (the Node dev server). Production uses HTTPS on your domain, which
+	     needs no exception. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- Location permission prompts (CLAUDE.md §6). Required or the app
+	     crashes the moment it asks for location. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Compass uses your location to point the arrow toward the people you're connected with, and to show them where you are.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Allowing “Always” keeps your location fresh for your partners even when the app isn't open, so the arrow stays accurate.</string>
+	<!-- Background Modes → Location updates. Lets iOS wake the app to refresh
+	     location while it's closed (significant-change monitoring, §6). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+</dict>
+</plist>
