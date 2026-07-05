@@ -1,5 +1,14 @@
 # Deploying the Compass server to Contabo
 
+> **Already running Caddy on this server?** Skip the nginx steps below. Just run
+> `./setup.sh` (adds a `payrollgm.com` block to your Caddyfile and reloads Caddy
+> — it auto-provisions HTTPS), then `./start.sh`. The Node server binds to
+> `127.0.0.1:4000`, private behind Caddy. The nginx walkthrough below is only for
+> a server that has *no* web server yet.
+
+---
+
+
 The app requires **HTTPS** (iOS blocks plain HTTP on a public domain). The Node
 server itself speaks plain HTTP; we put **nginx** in front to terminate TLS,
 with a free certificate from **Let's Encrypt**. One-time setup, then day-to-day

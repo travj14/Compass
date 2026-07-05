@@ -381,6 +381,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Compass dev server listening on http://localhost:${PORT}`);
+// Bind to localhost by default so the app server is private behind the web
+// server (Caddy) that terminates HTTPS in front of it. Set HOST=0.0.0.0 only if
+// you deliberately want it reachable directly.
+const HOST = process.env.HOST || "127.0.0.1";
+server.listen(PORT, HOST, () => {
+  console.log(`Compass server listening on http://${HOST}:${PORT}`);
 });

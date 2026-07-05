@@ -1,56 +1,53 @@
 #!/usr/bin/env bash
 #
-# ONE-TIME server setup: install nginx + certbot, put nginx in front of the
-# Node server, and get a free HTTPS certificate. Idempotent — safe to re-run
-# (it skips anything already done; certbot won't re-issue a valid cert).
+# ONE-TIME setup for a server already running Caddy on 80/443.
+# Adds a Compass site block to your Caddyfile and reloads Caddy, which then
+# fetches and auto-renews the HTTPS certificate for the domain. Idempotent.
 #
-# Run this ONCE on your Contabo server:
-#     ./setup.sh
+#   ./setup.sh
 #
 # Optional overrides:
-#     DOMAIN=api.payrollgm.com EMAIL=you@example.com ./setup.sh
+#   DOMAIN=api.payrollgm.com PORT=4000 CADDYFILE=/etc/caddy/Caddyfile ./setup.sh
 #
 set -euo pipefail
 cd "$(dirname "$0")"
 
 DOMAIN="${DOMAIN:-payrollgm.com}"
 PORT="${PORT:-4000}"
+CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 
-if ! command -v apt-get >/dev/null 2>&1; then
-  echo "This setup script targets Debian/Ubuntu (Contabo default). Aborting."
+if ! command -v caddy >/dev/null 2>&1; then
+  echo "Caddy not found on PATH. Is this the right server?"
+  exit 1
+fi
+if [ ! -f "$CADDYFILE" ]; then
+  echo "No Caddyfile at $CADDYFILE. Set CADDYFILE=/path/to/Caddyfile and re-run."
   exit 1
 fi
 
-echo "==> Installing nginx + certbot (if missing)…"
-command -v nginx   >/dev/null 2>&1 || { $SUDO apt-get update && $SUDO apt-get install -y nginx; }
-command -v certbot >/dev/null 2>&1 || $SUDO apt-get install -y certbot python3-certbot-nginx
+if $SUDO grep -q "^[[:space:]]*$DOMAIN[[:space:]]*{" "$CADDYFILE"; then
+  echo "$DOMAIN is already in $CADDYFILE — leaving your config untouched."
+else
+  echo "Adding a Compass block for $DOMAIN to $CADDYFILE…"
+  $SUDO cp "$CADDYFILE" "$CADDYFILE.bak.$(date +%s)"   # backup first
+  $SUDO tee -a "$CADDYFILE" >/dev/null <<EOF
 
-echo "==> Writing nginx reverse-proxy config for $DOMAIN…"
-CONF=/etc/nginx/sites-available/compass
-$SUDO tee "$CONF" >/dev/null <<EOF
-server {
-    server_name $DOMAIN;
-    location / {
-        proxy_pass http://127.0.0.1:$PORT;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
+$DOMAIN {
+    reverse_proxy 127.0.0.1:$PORT
 }
 EOF
-$SUDO ln -sf "$CONF" /etc/nginx/sites-enabled/compass
-$SUDO nginx -t
-# Start nginx (and enable on boot); restart applies the config whether or not
-# it was already running.
-$SUDO systemctl enable nginx >/dev/null 2>&1 || true
-$SUDO systemctl restart nginx
+fi
 
-echo "==> Requesting HTTPS certificate (certbot)…"
-if [ -n "${EMAIL:-}" ]; then EMAIL_ARG="-m $EMAIL"; else EMAIL_ARG="--register-unsafely-without-email"; fi
-$SUDO certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos $EMAIL_ARG --redirect || {
-  echo "certbot step didn't complete — check that DNS for $DOMAIN points here and port 80/443 are open."
-}
+echo "Validating Caddyfile…"
+$SUDO caddy validate --config "$CADDYFILE" --adapter caddyfile
+
+echo "Reloading Caddy…"
+$SUDO systemctl reload caddy 2>/dev/null \
+  || $SUDO caddy reload --config "$CADDYFILE" 2>/dev/null \
+  || { echo "Couldn't reload Caddy automatically — reload it however you normally do."; }
 
 echo
-echo "Done. Now start the app server with ./start.sh"
-echo "Verify: https://$DOMAIN/health   (should return {\"ok\":true})"
+echo "Done. Caddy will auto-provision HTTPS (may take a few seconds on first hit)."
+echo "Then start the app server:  ./start.sh"
+echo "Verify:  curl https://$DOMAIN/health   ->  {\"ok\":true}"
