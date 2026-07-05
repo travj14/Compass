@@ -26,21 +26,29 @@ if [ ! -f "$CADDYFILE" ]; then
   exit 1
 fi
 
-if $SUDO grep -q "^[[:space:]]*$DOMAIN[[:space:]]*{" "$CADDYFILE"; then
+# Match the domain as a site address however it's written
+# (e.g. "DOMAIN {", "https://DOMAIN {", "DOMAIN, www... {").
+if $SUDO grep -qE "^[[:space:]]*(https?://)?${DOMAIN}([[:space:],{]|\$)" "$CADDYFILE"; then
   echo "$DOMAIN is already in $CADDYFILE — leaving your config untouched."
+  echo "Validating Caddyfile…"
+  $SUDO caddy validate --config "$CADDYFILE" --adapter caddyfile
 else
   echo "Adding a Compass block for $DOMAIN to $CADDYFILE…"
-  $SUDO cp "$CADDYFILE" "$CADDYFILE.bak.$(date +%s)"   # backup first
+  BACKUP="$CADDYFILE.bak.$(date +%s)"
+  $SUDO cp "$CADDYFILE" "$BACKUP"
   $SUDO tee -a "$CADDYFILE" >/dev/null <<EOF
 
 $DOMAIN {
     reverse_proxy 127.0.0.1:$PORT
 }
 EOF
+  echo "Validating Caddyfile…"
+  if ! $SUDO caddy validate --config "$CADDYFILE" --adapter caddyfile; then
+    echo "That would break your Caddyfile — rolling back (restored from $BACKUP)."
+    $SUDO cp "$BACKUP" "$CADDYFILE"
+    exit 1
+  fi
 fi
-
-echo "Validating Caddyfile…"
-$SUDO caddy validate --config "$CADDYFILE" --adapter caddyfile
 
 echo "Reloading Caddy…"
 $SUDO systemctl reload caddy 2>/dev/null \
