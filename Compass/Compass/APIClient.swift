@@ -31,7 +31,7 @@ final class APIClient {
     #if targetEnvironment(simulator)
     var baseURL = URL(string: "http://localhost:4000")!
     #else
-    var baseURL = URL(string: "https://payrollgm.com")!
+    var baseURL = URL(string: "https://api.payrollgm.com")!
     #endif
     var token: String?
 
