@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Home-screen / bundle name. Must NOT be "Compass" — that's Apple's own
+	     built-in app and is reserved (upload error ITMS-90129). -->
+	<key>CFBundleDisplayName</key>
+	<string>Homeward</string>
+	<key>CFBundleName</key>
+	<string>Homeward</string>
 	<!-- Allow plain-HTTP requests to localhost/*.local during development
 	     (the Node dev server). Production uses HTTPS on your domain, which
 	     needs no exception. -->
