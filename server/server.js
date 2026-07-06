@@ -454,6 +454,56 @@ updated" date above.</p>
 </body>
 </html>`;
 
+const SUPPORT_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward Compass — Support</title>
+<style>
+  body { font: 16px/1.6 -apple-system, system-ui, sans-serif; max-width: 720px;
+         margin: 40px auto; padding: 0 20px; color: #1c1c1e; }
+  h1 { font-size: 1.8rem; } h2 { font-size: 1.15rem; margin-top: 1.8rem; }
+  .muted { color: #6b6b70; } a { color: #2f6bff; }
+  .card { background: #f2f2f7; border-radius: 12px; padding: 16px 20px; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #000; color: #e6e6ea; } .muted { color: #9a9aa2; }
+    .card { background: #1c1c1e; }
+  }
+</style>
+</head>
+<body>
+<h1>Homeward Compass — Support</h1>
+<p class="muted">An arrow that points toward the people you love.</p>
+
+<p class="card">Need help? Email <a href="mailto:support@payrollgm.com">support@payrollgm.com</a>
+and we'll get back to you.</p>
+
+<h2>Getting started</h2>
+<ul>
+  <li><strong>Sign up</strong> and choose a username.</li>
+  <li><strong>Add someone</strong> on the People tab by searching their username and
+      sending an invite. Once they accept, you're connected.</li>
+  <li><strong>Point at them</strong> — hold your phone up on the Compass tab and the
+      arrow swings toward whoever you've selected.</li>
+</ul>
+
+<h2>Common questions</h2>
+<p><strong>The arrow doesn't move.</strong> The live compass needs Location access
+and works while the app is open. Make sure Location is enabled in
+Settings → Homeward.</p>
+<p><strong>Why "Always" location?</strong> It keeps your location current for your
+connections even when the app is closed, so their arrow stays accurate.</p>
+<p><strong>How do I stop sharing?</strong> Remove a connection (••• → Remove) to stop
+sharing with that person, or turn off Location in iOS Settings.</p>
+<p><strong>How do I delete my account?</strong> Settings → Delete Account. This
+permanently removes your account, location, and connections.</p>
+
+<h2>Privacy</h2>
+<p>See our <a href="/privacy">Privacy Policy</a>.</p>
+</body>
+</html>`;
+
 // ---------- router ----------
 
 const server = http.createServer(async (req, res) => {
@@ -468,6 +518,8 @@ const server = http.createServer(async (req, res) => {
     if (m === "GET" && p === "/health") return send(res, 200, { ok: true });
     if (m === "GET" && (p === "/privacy" || p === "/privacy.html"))
       return sendHTML(res, PRIVACY_HTML);
+    if (m === "GET" && (p === "/support" || p === "/support.html"))
+      return sendHTML(res, SUPPORT_HTML);
 
     // Everything below requires a valid session token.
     const me = userForToken(req);
