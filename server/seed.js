@@ -14,6 +14,9 @@ const FAKES = [
   { username: "olivia_den", displayName: "Olivia Park", city: "Denver, CO",   lat: 39.7392,  lon: -104.9903 },
   { username: "noah_atx", displayName: "Noah Brooks",  city: "Austin, TX",    lat: 30.2672,  lon: -97.7431 },
   { username: "ava_sea",  displayName: "Ava Nguyen",   city: "Seattle, WA",   lat: 47.6062,  lon: -122.3321 },
+  { username: "sofia_mia", displayName: "Sofia Reyes", city: "Miami, FL",     lat: 25.7617,  lon: -80.1918 },
+  { username: "ethan_por", displayName: "Ethan Cole",  city: "Portland, OR",  lat: 45.5152,  lon: -122.6784 },
+  { username: "zoe_la",    displayName: "Zoe Kim",     city: "Los Angeles, CA", lat: 34.0522, lon: -118.2437 },
 ];
 
 async function api(path, { method = "GET", token, body } = {}) {
