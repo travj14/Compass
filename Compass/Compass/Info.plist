@@ -8,6 +8,10 @@
 	<string>Homeward</string>
 	<key>CFBundleName</key>
 	<string>Homeward</string>
+	<!-- App only uses standard HTTPS (exempt encryption) → skip the App Store
+	     Connect export-compliance question on every upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Allow plain-HTTP requests to localhost/*.local during development
 	     (the Node dev server). Production uses HTTPS on your domain, which
 	     needs no exception. -->
