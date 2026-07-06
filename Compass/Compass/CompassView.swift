@@ -23,7 +23,8 @@ struct CompassView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var heading: Double = 0
-    @State private var displayedAngle: Double = 0
+    @State private var displayedAngle: Double = 0    // needle (continuous, unwrapped)
+    @State private var displayedHeading: Double = 0  // ring (continuous, unwrapped)
 
     // MARK: - Selected partner
 
@@ -74,8 +75,12 @@ struct CompassView: View {
             }
         }
         .padding()
-        .onAppear { displayedAngle = arrowAngle }
+        .onAppear {
+            displayedAngle = arrowAngle
+            displayedHeading = effectiveHeading
+        }
         .onChange(of: arrowAngle) { _, newTarget in rotate(to: newTarget) }
+        .onChange(of: effectiveHeading) { _, newHeading in rotateRing(to: newHeading) }
         .onChange(of: locationKey) { _, _ in uploadMyLocation() }
     }
 
@@ -216,7 +221,7 @@ struct CompassView: View {
             [("N", 0), ("E", 90), ("S", 180), ("W", 270)]
         let radius: CGFloat = 102
         return ForEach(cardinals, id: \.name) { c in
-            let theta = c.bearing - effectiveHeading
+            let theta = c.bearing - displayedHeading
             Text(c.name)
                 .font(.headline.weight(c.name == "N" ? .bold : .regular))
                 .foregroundStyle(c.name == "N" ? Color.red : Color.secondary)
@@ -259,6 +264,17 @@ struct CompassView: View {
         // longer response = slower, freer swing.
         withAnimation(.spring(response: 0.9, dampingFraction: 0.22)) {
             displayedAngle += shortest
+        }
+    }
+
+    /// Glide the cardinal ring between the magnetometer's discrete heading steps
+    /// so it flows instead of ticking (what Apple's Compass does). Continuous +
+    /// shortest-path so it never spins the long way at the 0°/360° seam.
+    private func rotateRing(to target: Double) {
+        let delta = (target - displayedHeading).truncatingRemainder(dividingBy: 360)
+        let shortest = delta > 180 ? delta - 360 : (delta < -180 ? delta + 360 : delta)
+        withAnimation(.linear(duration: 0.2)) {
+            displayedHeading += shortest
         }
     }
 }
