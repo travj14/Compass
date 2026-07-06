@@ -21,9 +21,13 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
     var currentLocation: CLLocationCoordinate2D?
 
-    /// Live device heading in degrees (0 = true North). Comes from the
-    /// magnetometer on a real iPhone; stays nil in the Simulator (no compass).
+    /// Live device heading in degrees (0 = true North), low-pass filtered so the
+    /// compass glides instead of twitching. Comes from the magnetometer on a real
+    /// iPhone; stays nil in the Simulator (no compass).
     var heading: Double?
+
+    /// Running smoothed value behind `heading` (see applyHeading).
+    private var smoothedHeading: Double?
 
     private let manager = CLLocationManager()
 
@@ -63,6 +67,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         manager.startMonitoringSignificantLocationChanges()
         // Live compass — the real magic. No-op in the Simulator (no magnetometer).
         if CLLocationManager.headingAvailable() {
+            // Report every change (not just ≥1°) so the low-pass filter has
+            // enough samples to produce smooth motion.
+            manager.headingFilter = kCLHeadingFilterNone
             manager.startUpdatingHeading()
         }
     }
@@ -105,9 +112,29 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
                                      didUpdateHeading newHeading: CLHeading) {
         // Prefer true (geographic) north; fall back to magnetic north.
         // trueHeading is negative when it isn't yet available.
-        let h = newHeading.trueHeading >= 0 ? newHeading.trueHeading
-                                            : newHeading.magneticHeading
-        Task { @MainActor in self.heading = h }
+        let raw = newHeading.trueHeading >= 0 ? newHeading.trueHeading
+                                              : newHeading.magneticHeading
+        // CoreLocation delivers on the main run loop (manager was created on the
+        // main actor), so we're already isolated here.
+        MainActor.assumeIsolated { self.applyHeading(raw) }
+    }
+
+    /// Exponential low-pass filter over the noisy magnetometer, handling the
+    /// 0°/360° wrap. `factor` closer to 0 = smoother but laggier; closer to 1 =
+    /// snappier but jitterier. 0.2 is a calm-but-responsive middle.
+    private func applyHeading(_ raw: Double) {
+        guard let current = smoothedHeading else {
+            smoothedHeading = raw
+            heading = raw
+            return
+        }
+        var delta = (raw - current).truncatingRemainder(dividingBy: 360)
+        if delta > 180 { delta -= 360 } else if delta < -180 { delta += 360 }
+        var next = current + delta * 0.2
+        next = next.truncatingRemainder(dividingBy: 360)
+        if next < 0 { next += 360 }
+        smoothedHeading = next
+        heading = next
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager,

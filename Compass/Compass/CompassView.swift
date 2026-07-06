@@ -255,7 +255,9 @@ struct CompassView: View {
     private func rotate(to target: Double) {
         let delta = (target - displayedAngle).truncatingRemainder(dividingBy: 360)
         let shortest = delta > 180 ? delta - 360 : (delta < -180 ? delta + 360 : delta)
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.32)) {
+        // Looser, floatier needle: lower dampingFraction = more overshoot/wobble,
+        // longer response = slower, freer swing.
+        withAnimation(.spring(response: 0.9, dampingFraction: 0.22)) {
             displayedAngle += shortest
         }
     }
