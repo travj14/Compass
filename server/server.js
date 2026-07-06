@@ -450,7 +450,7 @@ information from them.</p>
 updated" date above.</p>
 
 <h2>Contact</h2>
-<p>Questions about privacy? Email <a href="mailto:support@payrollgm.com">support@payrollgm.com</a>.</p>
+<p>Questions about privacy? Email <a href="mailto:travisjohnsonbackup0325@gmail.com">travisjohnsonbackup0325@gmail.com</a>.</p>
 </body>
 </html>`;
 
@@ -476,7 +476,7 @@ const SUPPORT_HTML = `<!doctype html>
 <h1>Homeward Compass — Support</h1>
 <p class="muted">An arrow that points toward the people you love.</p>
 
-<p class="card">Need help? Email <a href="mailto:support@payrollgm.com">support@payrollgm.com</a>
+<p class="card">Need help? Email <a href="mailto:travisjohnsonbackup0325@gmail.com">travisjohnsonbackup0325@gmail.com</a>
 and we'll get back to you.</p>
 
 <h2>Getting started</h2>
