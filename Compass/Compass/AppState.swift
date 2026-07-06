@@ -116,6 +116,18 @@ final class AppState {
         selectedConnectionId = nil
     }
 
+    /// Permanently delete the account and all its data, then sign out locally.
+    func deleteAccount() async -> Bool {
+        do {
+            _ = try await api.send("/me/delete", method: "POST")
+            logout()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func loadMe() async {
         do {
             let data = try await api.send("/me")

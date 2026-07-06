@@ -42,9 +42,11 @@ async function ensureUser(u) {
 }
 
 async function main() {
-  const owner = (await api("/auth/login", { method: "POST", body: OWNER })).data;
+  // Create the demo owner if it doesn't exist yet (a fresh server is empty),
+  // otherwise log in. Password is "secret1".
+  const owner = await ensureUser({ username: OWNER.username, displayName: "Alice Demo" });
   if (!owner.token) {
-    console.error("Could not log in as alice. Is the server running? Is alice seeded?");
+    console.error("Could not create or log in as the demo owner. Is the server reachable?");
     process.exit(1);
   }
 

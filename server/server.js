@@ -100,6 +100,14 @@ function send(res, status, body) {
   res.end(json);
 }
 
+function sendHTML(res, html) {
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Length": Buffer.byteLength(html),
+  });
+  res.end(html);
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
@@ -310,6 +318,39 @@ async function handleRemoveConnection(req, res, me) {
   send(res, 200, { ok: true });
 }
 
+// Permanently delete the signed-in user and everything tied to them
+// (App Store requirement 5.1.1(v): account creation must allow deletion).
+async function handleDeleteAccount(req, res, me) {
+  const myConnIds = new Set(
+    db.connections
+      .filter((c) => c.requesterId === me.id || c.addresseeId === me.id)
+      .map((c) => c.id)
+  );
+
+  // Drop all my relationships (severs location visibility for the other side too).
+  db.connections = db.connections.filter((c) => !myConnIds.has(c.id));
+
+  // Scrub references to those relationships from everyone's order/nickname data.
+  for (const uid of Object.keys(db.orders)) {
+    db.orders[uid] = db.orders[uid].filter((id) => !myConnIds.has(id));
+  }
+  for (const uid of Object.keys(db.nicknames)) {
+    for (const cid of Object.keys(db.nicknames[uid])) {
+      if (myConnIds.has(cid)) delete db.nicknames[uid][cid];
+    }
+  }
+
+  // Remove all of my own data.
+  delete db.orders[me.id];
+  delete db.nicknames[me.id];
+  delete db.locations[me.id];
+  db.sessions = db.sessions.filter((s) => s.userId !== me.id);
+  db.users = db.users.filter((u) => u.id !== me.id);
+
+  saveDB(db);
+  send(res, 200, { ok: true });
+}
+
 async function handleLocationUpload(req, res, me) {
   const body = await readBody(req);
   const lat = Number(body.lat);
@@ -336,6 +377,83 @@ function handleConnectionLocation(req, res, me, otherId) {
   send(res, 200, { location: loc });
 }
 
+// ---------- privacy policy (served at /privacy) ----------
+
+const PRIVACY_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward Compass — Privacy Policy</title>
+<style>
+  body { font: 16px/1.6 -apple-system, system-ui, sans-serif; max-width: 720px;
+         margin: 40px auto; padding: 0 20px; color: #1c1c1e; }
+  h1 { font-size: 1.8rem; } h2 { font-size: 1.2rem; margin-top: 2rem; }
+  .muted { color: #6b6b70; } a { color: #2f6bff; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #000; color: #e6e6ea; } .muted { color: #9a9aa2; }
+  }
+</style>
+</head>
+<body>
+<h1>Homeward Compass — Privacy Policy</h1>
+<p class="muted">Last updated: July 5, 2026</p>
+
+<p>Homeward Compass ("the app") shows an arrow that points toward people you're
+connected with, and shows them where you are. This policy explains what we
+collect, why, and your choices. We keep it minimal on purpose.</p>
+
+<h2>What we collect</h2>
+<ul>
+  <li><strong>Account info</strong> — your chosen username and display name.</li>
+  <li><strong>Location</strong> — your device's current GPS location, so the
+      people you're connected with can be pointed toward you (and you toward
+      them). We store only your <em>latest</em> location, never a history or trail.</li>
+  <li><strong>Connections</strong> — the list of people you've mutually connected
+      with, and any custom names you set for them.</li>
+</ul>
+
+<h2>How we use it</h2>
+<p>Your information is used solely to provide the app's core feature: sharing your
+current location with people you have <strong>mutually agreed</strong> to connect
+with, and pointing your compass toward the person you select. Your location is
+visible only to users you are actively connected with.</p>
+
+<h2>What we don't do</h2>
+<ul>
+  <li>We do <strong>not</strong> sell, rent, or share your data with advertisers
+      or third parties.</li>
+  <li>We do <strong>not</strong> keep a history of where you've been — only your
+      most recent location, which is overwritten with each update.</li>
+</ul>
+
+<h2>Sharing &amp; consent</h2>
+<p>Connections are mutual: another person can only see your location after you
+both accept the connection. You can remove a connection at any time, which
+immediately stops location sharing in both directions.</p>
+
+<h2>Data retention &amp; deletion</h2>
+<p>We keep your data only while your account exists. You can permanently delete
+your account at any time from within the app (Settings → Delete Account). Deleting
+your account removes your profile, your stored location, and all of your
+connections from our servers.</p>
+
+<h2>Security</h2>
+<p>Data is transmitted over encrypted HTTPS connections.</p>
+
+<h2>Children</h2>
+<p>The app is not directed to children under 13, and we do not knowingly collect
+information from them.</p>
+
+<h2>Changes</h2>
+<p>We may update this policy; material changes will be reflected by the "Last
+updated" date above.</p>
+
+<h2>Contact</h2>
+<p>Questions about privacy? Email <a href="mailto:support@payrollgm.com">support@payrollgm.com</a>.</p>
+</body>
+</html>`;
+
 // ---------- router ----------
 
 const server = http.createServer(async (req, res) => {
@@ -348,12 +466,16 @@ const server = http.createServer(async (req, res) => {
     if (m === "POST" && p === "/auth/signup") return await handleSignup(req, res);
     if (m === "POST" && p === "/auth/login") return await handleLogin(req, res);
     if (m === "GET" && p === "/health") return send(res, 200, { ok: true });
+    if (m === "GET" && (p === "/privacy" || p === "/privacy.html"))
+      return sendHTML(res, PRIVACY_HTML);
 
     // Everything below requires a valid session token.
     const me = userForToken(req);
     if (!me) return send(res, 401, { error: "Not signed in." });
 
     if (m === "GET" && p === "/me") return handleMe(req, res, me);
+    if (m === "POST" && p === "/me/delete")
+      return await handleDeleteAccount(req, res, me);
     if (m === "GET" && p === "/users/search")
       return handleSearch(req, res, me, url);
     if (m === "POST" && p === "/connections/invite")

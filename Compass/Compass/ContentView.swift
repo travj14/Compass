@@ -17,6 +17,8 @@ struct ContentView: View {
                     .tabItem { Label("Compass", systemImage: "location.north.line.fill") }
                 PeopleView()
                     .tabItem { Label("People", systemImage: "person.2.fill") }
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape.fill") }
             }
         } else {
             AuthView()
