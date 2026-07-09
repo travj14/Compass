@@ -26,6 +26,7 @@ struct PeopleView: View {
     @State private var showRemoveConfirm = false
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
+    @State private var showBlockConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -106,6 +107,18 @@ struct PeopleView: View {
             } message: {
                 Text("You'll both stop seeing each other's location.")
             }
+            .confirmationDialog(
+                "Block \(editTarget?.displayLabel ?? "")?",
+                isPresented: $showBlockConfirm, titleVisibility: .visible
+            ) {
+                Button("Block", role: .destructive) {
+                    if let c = editTarget {
+                        Task { await app.block(userId: c.user.id) }
+                    }
+                }
+            } message: {
+                Text("They'll be removed from your connections and won't be able to find, contact, or see you.")
+            }
             .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
             .onChange(of: photoItem) { _, item in loadPhoto(item) }
         }
@@ -158,6 +171,11 @@ struct PeopleView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
+        .swipeActions {
+            Button("Block", role: .destructive) {
+                Task { await app.block(userId: conn.user.id) }
+            }
+        }
     }
 
     private func connectedRow(_ conn: Connection) -> some View {
@@ -186,6 +204,10 @@ struct PeopleView: View {
                     editTarget = conn
                     showRemoveConfirm = true
                 } label: { Label("Remove", systemImage: "trash") }
+                Button(role: .destructive) {
+                    editTarget = conn
+                    showBlockConfirm = true
+                } label: { Label("Block", systemImage: "hand.raised") }
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(.secondary)

@@ -20,6 +20,11 @@ struct ContentView: View {
                 SettingsView()
                     .tabItem { Label("Settings", systemImage: "gearshape.fill") }
             }
+            .sheet(isPresented: .init(get: { app.needsSharingConsent }, set: { _ in })) {
+                LocationConsentView()
+                    .environment(app)
+                    .interactiveDismissDisabled()
+            }
         } else {
             AuthView()
         }

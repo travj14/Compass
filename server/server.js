@@ -62,6 +62,21 @@ function findUserByName(username) {
   return db.users.find((u) => u.username.toLowerCase() === lower);
 }
 
+function findUserById(id) {
+  return db.users.find((u) => u.id === id);
+}
+
+// Set of user ids blocked by, or blocking, `userId` (either direction).
+function blockedIdsFor(userId) {
+  const ids = new Set();
+  for (const c of db.connections) {
+    if (c.status !== "blocked") continue;
+    if (c.requesterId === userId) ids.add(c.addresseeId);
+    else if (c.addresseeId === userId) ids.add(c.requesterId);
+  }
+  return ids;
+}
+
 function userForToken(req) {
   const auth = req.headers["authorization"] || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
@@ -184,8 +199,9 @@ function handleMe(req, res, me) {
 function handleSearch(req, res, me, url) {
   const q = (url.searchParams.get("u") || "").trim().toLowerCase();
   if (q.length < 2) return send(res, 200, { users: [] });
+  const blocked = blockedIdsFor(me.id); // hide anyone blocked (either direction)
   const results = db.users
-    .filter((u) => u.id !== me.id && u.username.toLowerCase().includes(q))
+    .filter((u) => u.id !== me.id && !blocked.has(u.id) && u.username.toLowerCase().includes(q))
     .slice(0, 10)
     .map(publicUser);
   send(res, 200, { users: results });
@@ -204,7 +220,9 @@ async function handleInvite(req, res, me) {
       error:
         existing.status === "accepted"
           ? "You're already connected."
-          : "There's already a pending request.",
+          : existing.status === "blocked"
+            ? "You can't connect with this user."
+            : "There's already a pending request.",
     });
   }
 
@@ -249,7 +267,7 @@ function handleConnections(req, res, me) {
   };
 
   const list = db.connections
-    .filter((c) => c.requesterId === me.id || c.addresseeId === me.id)
+    .filter((c) => (c.requesterId === me.id || c.addresseeId === me.id) && c.status !== "blocked")
     .map((c) => {
       const otherId = c.requesterId === me.id ? c.addresseeId : c.requesterId;
       const other = db.users.find((u) => u.id === otherId);
@@ -347,6 +365,64 @@ async function handleDeleteAccount(req, res, me) {
   db.sessions = db.sessions.filter((s) => s.userId !== me.id);
   db.users = db.users.filter((u) => u.id !== me.id);
 
+  saveDB(db);
+  send(res, 200, { ok: true });
+}
+
+// Block a user: severs any relationship and prevents future contact/discovery
+// in both directions (App Store requirement for user-to-user apps).
+async function handleBlock(req, res, me) {
+  const body = await readBody(req);
+  const target = findUserById(body.userId);
+  if (!target) return send(res, 404, { error: "User not found." });
+  if (target.id === me.id) return send(res, 400, { error: "You can't block yourself." });
+
+  // Remove any existing relationship (and tidy order/nickname refs).
+  const existing = anyConnection(me.id, target.id);
+  if (existing) {
+    db.connections = db.connections.filter((c) => c.id !== existing.id);
+    for (const uid of [me.id, target.id]) {
+      if (db.orders[uid]) db.orders[uid] = db.orders[uid].filter((id) => id !== existing.id);
+      if (db.nicknames[uid]) delete db.nicknames[uid][existing.id];
+    }
+  }
+
+  db.connections.push({
+    id: newId(),
+    requesterId: me.id, // the blocker
+    addresseeId: target.id,
+    status: "blocked",
+    createdAt: Date.now(),
+  });
+  saveDB(db);
+  send(res, 200, { ok: true });
+}
+
+async function handleUnblock(req, res, me) {
+  const body = await readBody(req);
+  const conn = db.connections.find(
+    (c) => c.id === body.connectionId && c.status === "blocked" && c.requesterId === me.id
+  );
+  if (!conn) return send(res, 404, { error: "Block not found." });
+  db.connections = db.connections.filter((c) => c.id !== conn.id);
+  saveDB(db);
+  send(res, 200, { ok: true });
+}
+
+function handleBlockedList(req, res, me) {
+  const blocked = db.connections
+    .filter((c) => c.status === "blocked" && c.requesterId === me.id)
+    .map((c) => {
+      const u = findUserById(c.addresseeId);
+      return u ? { connectionId: c.id, user: publicUser(u) } : null;
+    })
+    .filter((x) => x !== null);
+  send(res, 200, { blocked });
+}
+
+// Stop sharing: remove my stored location so no connection can see it.
+async function handleStopSharing(req, res, me) {
+  delete db.locations[me.id];
   saveDB(db);
   send(res, 200, { ok: true });
 }
@@ -542,8 +618,16 @@ const server = http.createServer(async (req, res) => {
       return await handleSetNickname(req, res, me);
     if (m === "POST" && p === "/connections/remove")
       return await handleRemoveConnection(req, res, me);
+    if (m === "POST" && p === "/connections/block")
+      return await handleBlock(req, res, me);
+    if (m === "POST" && p === "/connections/unblock")
+      return await handleUnblock(req, res, me);
+    if (m === "GET" && p === "/connections/blocked")
+      return handleBlockedList(req, res, me);
     if (m === "POST" && p === "/location")
       return await handleLocationUpload(req, res, me);
+    if (m === "POST" && p === "/location/stop")
+      return await handleStopSharing(req, res, me);
 
     const locMatch = p.match(/^\/connections\/([^/]+)\/location$/);
     if (m === "GET" && locMatch)

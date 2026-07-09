@@ -15,12 +15,21 @@ import SwiftUI
 final class AppState {
     var currentUser: APIUser?
     var connections: [Connection] = []
+    var blockedUsers: [BlockedEntry] = []
     var selectedConnectionId: String?
     var errorMessage: String?
     var isBusy = false
 
+    /// Whether the user has opted in to sharing their location with connections.
+    /// Off until they explicitly consent (see the first-run consent prompt).
+    var locationSharingEnabled = false
+    /// Whether we've shown the one-time location-sharing consent yet.
+    var hasAnsweredSharingConsent = false
+
     let api = APIClient()
     private let tokenKey = "compass.token"
+    private let sharingKey = "compass.locationSharing"
+    private let consentKey = "compass.sharingConsentAnswered"
 
     /// User's preferred ordering of connections (by connectionId). Stored on the
     /// server so it syncs across devices; mirrored here for the current session.
@@ -50,12 +59,60 @@ final class AppState {
     }
 
     init() {
+        locationSharingEnabled = UserDefaults.standard.bool(forKey: sharingKey)
+        hasAnsweredSharingConsent = UserDefaults.standard.bool(forKey: consentKey)
         if let t = UserDefaults.standard.string(forKey: tokenKey), !t.isEmpty {
             api.token = t
             Task {
                 await loadMe()
                 await refreshConnections()
+                await refreshBlocked()
             }
+        }
+    }
+
+    /// The signed-in user hasn't yet chosen whether to share their location.
+    var needsSharingConsent: Bool { isSignedIn && !hasAnsweredSharingConsent }
+
+    /// Record the user's location-sharing choice. Turning it off also removes
+    /// their stored location from the server so no one can see it.
+    func setLocationSharing(_ on: Bool) {
+        locationSharingEnabled = on
+        hasAnsweredSharingConsent = true
+        UserDefaults.standard.set(on, forKey: sharingKey)
+        UserDefaults.standard.set(true, forKey: consentKey)
+        if !on {
+            Task { try? await api.send("/location/stop", method: "POST") }
+        }
+    }
+
+    // MARK: - Blocking
+
+    func refreshBlocked() async {
+        do {
+            let data = try await api.send("/connections/blocked")
+            blockedUsers = try api.decode(BlockedResponse.self, from: data).blocked
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func block(userId: String) async {
+        do {
+            _ = try await api.send("/connections/block", method: "POST", json: ["userId": userId])
+            await refreshConnections()
+            await refreshBlocked()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func unblock(connectionId: String) async {
+        do {
+            _ = try await api.send("/connections/unblock", method: "POST", json: ["connectionId": connectionId])
+            await refreshBlocked()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -103,6 +160,7 @@ final class AppState {
             currentUser = res.user
             errorMessage = nil
             await refreshConnections()
+            await refreshBlocked()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -113,7 +171,13 @@ final class AppState {
         UserDefaults.standard.removeObject(forKey: tokenKey)
         currentUser = nil
         connections = []
+        blockedUsers = []
         selectedConnectionId = nil
+        // Re-ask the location-sharing consent on the next sign-in.
+        locationSharingEnabled = false
+        hasAnsweredSharingConsent = false
+        UserDefaults.standard.removeObject(forKey: sharingKey)
+        UserDefaults.standard.removeObject(forKey: consentKey)
     }
 
     /// Permanently delete the account and all its data, then sign out locally.

@@ -62,4 +62,11 @@ struct AuthResponse: Decodable { let token: String; let user: APIUser }
 struct MeResponse: Decodable { let user: APIUser }
 struct SearchResponse: Decodable { let users: [APIUser] }
 struct ConnectionsResponse: Decodable { let connections: [Connection]; let order: [String]? }
+
+struct BlockedEntry: Codable, Identifiable, Hashable {
+    let connectionId: String
+    let user: APIUser
+    var id: String { connectionId }
+}
+struct BlockedResponse: Decodable { let blocked: [BlockedEntry] }
 struct LocationResponse: Decodable { let location: PartnerLocation }

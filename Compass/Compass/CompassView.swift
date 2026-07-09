@@ -252,7 +252,8 @@ struct CompassView: View {
     }
 
     private func uploadMyLocation() {
-        guard let me = location.currentLocation else { return }
+        // Only share my location if I've opted in (App Store consent requirement).
+        guard app.locationSharingEnabled, let me = location.currentLocation else { return }
         Task { await app.uploadMyLocation(lat: me.latitude, lon: me.longitude) }
     }
 

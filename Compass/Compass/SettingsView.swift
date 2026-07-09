@@ -25,6 +25,35 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle("Share My Location", isOn: Binding(
+                        get: { app.locationSharingEnabled },
+                        set: { app.setLocationSharing($0) }
+                    ))
+                } footer: {
+                    Text("When on, your accepted connections can see your location and point toward you. Turn off to stop sharing and remove your location from our servers.")
+                }
+
+                if !app.blockedUsers.isEmpty {
+                    Section("Blocked") {
+                        ForEach(app.blockedUsers) { b in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(b.user.displayName)
+                                    Text("@\(b.user.username)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button("Unblock") {
+                                    Task { await app.unblock(connectionId: b.connectionId) }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+
+                Section {
                     Button("Sign Out") { app.logout() }
                 }
 
@@ -50,6 +79,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .task { await app.refreshBlocked() }
             .alert("Delete Account?", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) {
                     deleting = true
