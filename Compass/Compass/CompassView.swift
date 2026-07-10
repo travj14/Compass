@@ -29,7 +29,10 @@ struct CompassView: View {
     // MARK: - Selected partner
 
     private var partner: Connection? { app.selectedConnection }
-    private var partnerName: String { partner?.displayLabel ?? "Demo partner" }
+    /// Capped so an overly long name can never run off screen.
+    private var partnerName: String {
+        String((partner?.displayLabel ?? "Demo partner").prefix(50))
+    }
 
     /// Fallback partner (Oakland) so the compass still demonstrates itself before
     /// you have connections.
@@ -179,9 +182,14 @@ struct CompassView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text(partnerName).font(.title2.weight(.semibold))
+                        Text(partnerName)
+                            .font(.title2.weight(.semibold))
+                            .lineLimit(1)
                         Image(systemName: "chevron.down").font(.footnote)
                     }
+                    // Switch names instantly — don't let the arrow's spring animate
+                    // the label's width (which caused the "Ethan C…" → "Ethan Cole" grow).
+                    .transaction { $0.animation = nil }
                 }
                 .tint(.primary)
 
