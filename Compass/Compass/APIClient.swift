@@ -16,8 +16,12 @@ struct APIErrorResponse: Decodable { let error: String }
 
 enum APIError: LocalizedError {
     case message(String)
+    case cancelled   // request was cancelled (e.g. view torn down on sign-out) — not a real error
     var errorDescription: String? {
-        switch self { case .message(let m): return m }
+        switch self {
+        case .message(let m): return m
+        case .cancelled: return nil
+        }
     }
 }
 
@@ -58,6 +62,7 @@ final class APIClient {
         do {
             (data, resp) = try await URLSession.shared.data(for: req)
         } catch {
+            if (error as? URLError)?.code == .cancelled { throw APIError.cancelled }
             throw APIError.message("Can't reach the server. Is `node server.js` running? (\(error.localizedDescription))")
         }
 

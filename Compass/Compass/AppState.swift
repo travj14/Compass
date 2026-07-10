@@ -93,7 +93,7 @@ final class AppState {
             let data = try await api.send("/connections/blocked")
             blockedUsers = try api.decode(BlockedResponse.self, from: data).blocked
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -103,7 +103,7 @@ final class AppState {
             await refreshConnections()
             await refreshBlocked()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -112,7 +112,7 @@ final class AppState {
             _ = try await api.send("/connections/unblock", method: "POST", json: ["connectionId": connectionId])
             await refreshBlocked()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -131,7 +131,7 @@ final class AppState {
                                    method: "POST",
                                    json: ["order": connectionOrder])
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -162,7 +162,7 @@ final class AppState {
             await refreshConnections()
             await refreshBlocked()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -178,6 +178,14 @@ final class AppState {
         hasAnsweredSharingConsent = false
         UserDefaults.standard.removeObject(forKey: sharingKey)
         UserDefaults.standard.removeObject(forKey: consentKey)
+        errorMessage = nil // clear any stale error so it doesn't show on the login screen
+    }
+
+    /// Surface an error to the UI, but ignore cancellations — those happen when a
+    /// screen is torn down mid-request (e.g. signing out), not a real failure.
+    private func report(_ error: Error) {
+        if case APIError.cancelled = error { return }
+        errorMessage = error.localizedDescription
     }
 
     /// Permanently delete the account and all its data, then sign out locally.
@@ -187,7 +195,7 @@ final class AppState {
             logout()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
             return false
         }
     }
@@ -197,6 +205,7 @@ final class AppState {
             let data = try await api.send("/me")
             currentUser = try api.decode(MeResponse.self, from: data).user
         } catch {
+            if case APIError.cancelled = error { return } // don't sign out on a cancelled request
             logout() // token no longer valid
         }
     }
@@ -213,7 +222,7 @@ final class AppState {
                 selectedConnectionId = orderedAcceptedConnections.first?.connectionId
             }
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -226,7 +235,7 @@ final class AppState {
             let data = try await api.send("/users/search?u=\(encoded)")
             return try api.decode(SearchResponse.self, from: data).users
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
             return []
         }
     }
@@ -240,7 +249,7 @@ final class AppState {
             await refreshConnections()
             return true
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
             return false
         }
     }
@@ -253,7 +262,7 @@ final class AppState {
                                    json: ["connectionId": connectionId, "nickname": name])
             await refreshConnections()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -266,7 +275,7 @@ final class AppState {
             if selectedConnectionId == connectionId { selectedConnectionId = nil }
             await refreshConnections()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -278,7 +287,7 @@ final class AppState {
                                           "action": accept ? "accept" : "decline"])
             await refreshConnections()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
