@@ -8,8 +8,29 @@
 
 import SwiftUI
 
+/// User's chosen appearance. Persisted via @AppStorage and applied app-wide.
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 struct SettingsView: View {
     @Environment(AppState.self) private var app
+    @AppStorage("appearance") private var appearance: Appearance = .system
 
     @State private var showDeleteConfirm = false
     @State private var deleting = false
@@ -22,6 +43,15 @@ struct SettingsView: View {
                         LabeledContent("Username", value: "@\(u.username)")
                         LabeledContent("Name", value: u.displayName)
                     }
+                }
+
+                Section("Appearance") {
+                    Picker("Theme", selection: $appearance) {
+                        ForEach(Appearance.allCases) { a in
+                            Text(a.label).tag(a)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section {
