@@ -199,7 +199,13 @@ struct PeopleView: View {
                 Button {
                     editTarget = conn
                     showPhotoPicker = true
-                } label: { Label("Change Photo", systemImage: "photo") }
+                } label: { Label(avatars.hasImage(for: conn.user.id) ? "Change Photo" : "Add Photo",
+                                 systemImage: "photo") }
+                if avatars.hasImage(for: conn.user.id) {
+                    Button(role: .destructive) {
+                        avatars.removeImage(for: conn.user.id)
+                    } label: { Label("Remove Photo", systemImage: "photo.badge.minus") }
+                }
                 Button(role: .destructive) {
                     editTarget = conn
                     showRemoveConfirm = true

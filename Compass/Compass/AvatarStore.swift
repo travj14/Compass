@@ -39,6 +39,16 @@ final class AvatarStore {
             try? data.write(to: dir.appendingPathComponent("\(userId).jpg"))
         }
     }
+
+    func hasImage(for userId: String) -> Bool {
+        image(for: userId) != nil
+    }
+
+    /// Remove a custom photo, reverting to the colored initials avatar.
+    func removeImage(for userId: String) {
+        cache.removeValue(forKey: userId)
+        try? FileManager.default.removeItem(at: dir.appendingPathComponent("\(userId).jpg"))
+    }
 }
 
 /// A circular avatar: the person's photo if set, otherwise their initials on a
