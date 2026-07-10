@@ -473,7 +473,7 @@ const PRIVACY_HTML = `<!doctype html>
 </head>
 <body>
 <h1>Homeward Compass — Privacy Policy</h1>
-<p class="muted">Last updated: July 5, 2026</p>
+<p class="muted">Last updated: July 10, 2026</p>
 
 <p>Homeward Compass ("the app") shows an arrow that points toward people you're
 connected with, and shows them where you are. This policy explains what we
@@ -481,7 +481,8 @@ collect, why, and your choices. We keep it minimal on purpose.</p>
 
 <h2>What we collect</h2>
 <ul>
-  <li><strong>Account info</strong> — your chosen username and display name.</li>
+  <li><strong>Account info</strong> — your chosen username, display name, and a
+      password (stored securely as a salted hash, never in plain text).</li>
   <li><strong>Location</strong> — your device's current GPS location, so the
       people you're connected with can be pointed toward you (and you toward
       them). We store only your <em>latest</em> location, never a history or trail.</li>
@@ -503,10 +504,19 @@ visible only to users you are actively connected with.</p>
       most recent location, which is overwritten with each update.</li>
 </ul>
 
-<h2>Sharing &amp; consent</h2>
-<p>Connections are mutual: another person can only see your location after you
-both accept the connection. You can remove a connection at any time, which
-immediately stops location sharing in both directions.</p>
+<h2>Sharing &amp; your controls</h2>
+<p>You decide whether to share your location. After signing in you are asked to
+opt in, and you may decline. Sharing only ever happens with people you have
+<strong>mutually accepted</strong> as connections — there is no map of nearby
+users and no way to see or be seen by strangers.</p>
+<p>You can stop at any time by:</p>
+<ul>
+  <li>Turning off <strong>Share My Location</strong> in Settings, which removes
+      your location from our servers;</li>
+  <li><strong>Removing</strong> a connection, which stops sharing in both directions; or</li>
+  <li><strong>Blocking</strong> a user, which prevents them from finding,
+      contacting, or seeing you.</li>
+</ul>
 
 <h2>Data retention &amp; deletion</h2>
 <p>We keep your data only while your account exists. You can permanently delete
@@ -517,9 +527,9 @@ connections from our servers.</p>
 <h2>Security</h2>
 <p>Data is transmitted over encrypted HTTPS connections.</p>
 
-<h2>Children</h2>
-<p>The app is not directed to children under 13, and we do not knowingly collect
-information from them.</p>
+<h2>Age</h2>
+<p>Homeward Compass is intended for adults and is rated 18+. It is not directed to
+children or minors, and we do not knowingly collect information from anyone under 18.</p>
 
 <h2>Changes</h2>
 <p>We may update this policy; material changes will be reflected by the "Last
