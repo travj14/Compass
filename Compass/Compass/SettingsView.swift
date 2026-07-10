@@ -46,12 +46,23 @@ struct SettingsView: View {
                 }
 
                 Section("Appearance") {
-                    Picker("Theme", selection: $appearance) {
-                        ForEach(Appearance.allCases) { a in
-                            Text(a.label).tag(a)
+                    ForEach(Appearance.allCases) { option in
+                        Button {
+                            appearance = option
+                        } label: {
+                            HStack {
+                                Text(option.label).foregroundStyle(.primary)
+                                Spacer()
+                                if appearance == option {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.tint)
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
-                    .pickerStyle(.segmented)
                 }
 
                 Section {
